@@ -5,14 +5,19 @@ date: "January 20, 2015"
 output: html_document
 ---
 
-# Overview
+# Synopsis
 
 This paper analyzes the U.S. National Oceanic and Atmospheric Administration's 
 (NOAA) storm database. This database tracks characteristics of major storms and 
 weather events in the United States, including when and where they occur, as 
 well as estimates of any fatalities, injuries, and property damage.
 
-# Storm Data
+```{r libraries,echo=FALSE,eval=TRUE,warning=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+# Data Processing
 
 The [storm data][1] was provided by Dr. Roger D. Peng, PhD as part of the
 _[Reproducible Research][2]_ Coursera course. The data is described in [this 
@@ -27,15 +32,37 @@ if (!file.exists(dataFileName)) {
                   destfile = dataFileName,
                   method = "curl")
     }
-data <- read.csv(bzfile(dataFileName), na.strings="")
-
-# Cleanup names, dates, etc.
-library(lubridate)
+data <- read.csv(bzfile(dataFileName), na.strings = "")
 names(data) <- make.names(tolower(names(data)))
-data$begin = parse_date_time(paste(data$BGN_DATE, data$BGN_TIME), 
-                             "m*!/d!/Y! H!:M!:S!", 
-                             truncated = 1)
+data <- tbl_df(data)
 ```
+
+# Results
+
+## Storm Event Types and Population 
+
+```{r load-data,echo=FALSE,eval=TRUE,warning=FALSE}
+popImpactData <- data %>%
+    select(evtype, fatalities, injuries) %>%
+    group_by(evtype) %>%
+    summarise(fatalities = sum(fatalities), injuries = sum(injuries)) %>%
+    filter(fatalities > 0 | injuries > 0)
+
+# Analyze the events with most fatalities
+topFatalities <- arrange(popImpactData, desc(fatalities))[1:10, c("evtype", "fatalities")]
+eventTypes <- as.character(topFatalities$evtype)
+topFatalities$evtype = factor(eventTypes, levels = eventTypes, ordered = TRUE)
+ggplot(topFatalities) +
+    geom_bar(stat = "identity", aes(x = evtype, y = fatalities)) 
+
+# Analyze the events with most injuries
+topInjuries <- arrange(popImpactData, desc(injuries))[1:10, c("evtype", "fatalities")]
+eventTypes <- as.character(topInjuries$evtype)
+topInjuries$evtype = factor(eventTypes, levels = eventTypes, ordered = TRUE)
+
+```
+
+## Storm Event Types and Economic Consequences
 
 # Appendix
 
@@ -43,11 +70,17 @@ data$begin = parse_date_time(paste(data$BGN_DATE, data$BGN_TIME),
 
 The R code used in preparing this report is available in this section.
 
-### Downloading, Loading and Cleaning Data
+### Libraries
 
 ```{r echo=TRUE,eval=FALSE}
+<<libraries>>
+    ```
+    
+    ### Downloading, Loading and Cleaning Data
+    
+    ```{r echo=TRUE,eval=FALSE}
 <<load-data>>
-```
+    ```
     
     [1]: https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2 "Storm Data"
     [2]: https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf "National Weather Service Instruction 10-1605"
