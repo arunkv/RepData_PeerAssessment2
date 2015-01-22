@@ -74,7 +74,7 @@ The
 was provided by Dr. Roger D. Peng, PhD as part of the
 _[Reproducible Research](https://class.coursera.org/repdata-010)_ 
 Coursera course. The data is described in 
-_National Weather Service Instruction 10-1605(https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)_ 
+_[National Weather Service Instruction 10-1605](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)_ 
 from the NOAA. 
 
 ```{r prelim-anal, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
