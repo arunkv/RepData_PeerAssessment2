@@ -1,10 +1,15 @@
 ---
 title: "NOAA Storm Data Analysis"
 author: "Arun K Viswanathan"
-date: "January 20, 2015"
-output: html_document
-toc: true
+date: "January 22, 2015"
+output: 
+    html_document: 
+        toc: true
 ---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(cache = TRUE)
+```
 
 # Synopsis
 
@@ -13,14 +18,15 @@ This paper analyzes the U.S. National Oceanic and Atmospheric Administration's
 weather events in the United States, including when and where they occur, as 
 well as estimates of any fatalities, injuries, and property damage.
 
-```{r libraries,echo=FALSE,eval=TRUE,warning=FALSE}
+```{r libraries, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 library(dplyr)
+library(lubridate)
 library(ggplot2)
 ```
 
 # Data Processing
 
-```{r load-data, echo = FALSE, eval = TRUE, warning = FALSE}
+```{r load-data, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 # Download and read file
 dataFileName <- "data/StormData.csv.bz2"
 if (!file.exists(dataFileName)) {
@@ -32,15 +38,46 @@ if (!file.exists(dataFileName)) {
 data <- read.csv(bzfile(dataFileName), 
                  na.strings = "", 
                  stringsAsFactors = FALSE)
+
+# Fix up column names
 names(data) <- make.names(tolower(names(data)))
+
+# Fix typos is event names
+cleanups <- c("AVALANCE", "AVALANCHE",
+              "COASTAL FLOODING", "COASTAL FLOOD",
+              "COASTAL FLOODING/EROSION", "COASTAL FLOOD",
+              "COASTAL STORM", "COASTAL FLOOD",
+              "COASTALSTORM", "COASTAL FLOOD",
+              "Coastal Flooding", "COASTAL FLOOD",
+              "Coastal Storm", "COASTAL FLOOD",
+              "COLD", "COLD/WIND CHILL",
+              "COLD AND SNOW", "COLD/WIND CHILL",
+              "COLD WAVE", "COLD/WIND CHILL",
+              "COLD WEATHER", "COLD/WIND CHILL",
+              "COLD/WINDS", "COLD/WIND CHILL",
+              "Cold", "COLD/WIND CHILL",
+              "Cold Temperature", "COLD/WIND CHILL",
+              "DROUGHT/EXCESSIVE HEAT", "DROUGHT",
+              "Dust Devil", "DUST DEVIL",
+              "EXCESSIVE RAINFALL", "HEAVY RAIN"
+              )
+cleanups <- matrix(cleanups, nrow = length(cleanups)/2, ncol = 2, byrow = TRUE)
+ignore <- apply(cleanups, 1, function(x) {
+    data[data$evtype == x[1], "evtype"] <- x[2]    
+})
+
 data <- tbl_df(data)
 ```
 
-The [storm data][1] was provided by Dr. Roger D. Peng, PhD as part of the
-_[Reproducible Research][2]_ Coursera course. The data is described in [this 
-document][2] from the NOAA. 
+The 
+[storm data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) 
+was provided by Dr. Roger D. Peng, PhD as part of the
+_[Reproducible Research](https://class.coursera.org/repdata-010)_ 
+Coursera course. The data is described in 
+_National Weather Service Instruction 10-1605(https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)_ 
+from the NOAA. 
 
-```{r prelim-anal, echo = FALSE, eval = TRUE, warning = FALSE}
+```{r prelim-anal, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 nobs <- format(nrow(data), scientific = FALSE, big.mark = ",")
 data$bgn_date <- mdy_hms(data$bgn_date, truncated = 1)
 yearRange <- range(year(data$bgn_date))
@@ -48,14 +85,15 @@ evtypeCount <- length(unique(data$evtype))
 ```
 
 The data contains `r nobs` observations of storm event data from 
-`r yearRange[1]` to `r yearRange[2]`. Around `r evtypeCount` event types are
-available in the data.
+`r yearRange[1]` to `r yearRange[2]`. The data has been cleaned to adhere to
+section 2.1 _Permitted Storm Data Events_ of the NOAA document. Around 
+`r evtypeCount` event types are available in the data after cleanup.
 
 # Results
 
 ## Storm Event Types and Population 
 
-```{r analyze-by-pop, echo = FALSE, eval = TRUE, warning = FALSE}
+```{r analyze-by-pop, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 # Summarize the fatalities and injuries for each storm event type
 popImpactData <- data %>%
     select(evtype, fatalities, injuries) %>%
@@ -80,7 +118,7 @@ topInjuryEvent <- eventTypes[1]
 topInjuryEventCount <- topInjuries$injuries[1]
 ```
 
-```{r plot-fatalities, echo = FALSE, eval = TRUE, warning = FALSE}
+```{r plot-fatalities, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 # Plot fatalities
 ggplot(topFatalities) +
     geom_bar(stat = "identity", 
@@ -92,7 +130,7 @@ ggplot(topFatalities) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
 ```
 
-```{r plot-injuries, echo = FALSE, eval = TRUE, warning = FALSE}
+```{r plot-injuries, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
 # Plot injuries
 ggplot(topInjuries) +
     geom_bar(stat = "identity", 
@@ -114,33 +152,29 @@ The R code used in preparing this report is available in this section.
 
 ### Libraries
 
-```{r echo=TRUE,eval=FALSE}
+```{r echo = TRUE, eval = FALSE}
 <<libraries>>
 ```
     
 ### Downloading, Loading and Cleaning Data
     
-```{r echo=TRUE,eval=FALSE}
+```{r echo = TRUE, eval = FALSE}
 <<load-data>>
 ```
 
 ### Preliminary Analysis
 
-```{r echo=TRUE,eval=FALSE}
+```{r echo = TRUE, eval = FALSE}
 <<prelim-anal>>
 ```
 
 ### Analyze Storm Event by Population Impact
-```{r echo=TRUE,eval=FALSE}
+```{r echo = TRUE, eval = FALSE}
 <<analyze-by-pop>>
 ```
 
 ### Plot Population Impact of Storm Events
-```{r echo=TRUE,eval=FALSE}
+```{r echo = TRUE, eval = FALSE}
 <<plot-fatalities>>
 <<plot-injuries>>
 ```
-
-
-    [1]: https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2 "Storm Data"
-    [2]: https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf "National Weather Service Instruction 10-1605"
