@@ -3,6 +3,7 @@ title: "NOAA Storm Data Analysis"
 author: "Arun K Viswanathan"
 date: "January 20, 2015"
 output: html_document
+toc: true
 ---
 
 # Synopsis
@@ -19,11 +20,7 @@ library(ggplot2)
 
 # Data Processing
 
-The [storm data][1] was provided by Dr. Roger D. Peng, PhD as part of the
-_[Reproducible Research][2]_ Coursera course. The data is described in [this 
-document][2] from the NOAA. 
-
-```{r load-data,echo=FALSE,eval=TRUE,warning=FALSE}
+```{r load-data, echo = FALSE, eval = TRUE, warning = FALSE}
 # Download and read file
 dataFileName <- "data/StormData.csv.bz2"
 if (!file.exists(dataFileName)) {
@@ -32,16 +29,34 @@ if (!file.exists(dataFileName)) {
                   destfile = dataFileName,
                   method = "curl")
     }
-data <- read.csv(bzfile(dataFileName), na.strings = "")
+data <- read.csv(bzfile(dataFileName), 
+                 na.strings = "", 
+                 stringsAsFactors = FALSE)
 names(data) <- make.names(tolower(names(data)))
 data <- tbl_df(data)
 ```
+
+The [storm data][1] was provided by Dr. Roger D. Peng, PhD as part of the
+_[Reproducible Research][2]_ Coursera course. The data is described in [this 
+document][2] from the NOAA. 
+
+```{r prelim-anal, echo = FALSE, eval = TRUE, warning = FALSE}
+nobs <- format(nrow(data), scientific = FALSE, big.mark = ",")
+data$bgn_date <- mdy_hms(data$bgn_date, truncated = 1)
+yearRange <- range(year(data$bgn_date))
+evtypeCount <- length(unique(data$evtype))
+```
+
+The data contains `r nobs` observations of storm event data from 
+`r yearRange[1]` to `r yearRange[2]`. Around `r evtypeCount` event types are
+available in the data.
 
 # Results
 
 ## Storm Event Types and Population 
 
-```{r load-data,echo=FALSE,eval=TRUE,warning=FALSE}
+```{r analyze-by-pop, echo = FALSE, eval = TRUE, warning = FALSE}
+# Summarize the fatalities and injuries for each storm event type
 popImpactData <- data %>%
     select(evtype, fatalities, injuries) %>%
     group_by(evtype) %>%
@@ -49,17 +64,44 @@ popImpactData <- data %>%
     filter(fatalities > 0 | injuries > 0)
 
 # Analyze the events with most fatalities
-topFatalities <- arrange(popImpactData, desc(fatalities))[1:10, c("evtype", "fatalities")]
+topFatalities <- arrange(popImpactData, 
+                         desc(fatalities))[1:10, c("evtype", "fatalities")]
 eventTypes <- as.character(topFatalities$evtype)
-topFatalities$evtype = factor(eventTypes, levels = eventTypes, ordered = TRUE)
-ggplot(topFatalities) +
-    geom_bar(stat = "identity", aes(x = evtype, y = fatalities)) 
+topFatalities$evtype <- factor(eventTypes, levels = eventTypes, ordered = TRUE)
+topFatalEvent <- eventTypes[1]
+topFatalEventCount <- topFatalities$fatalities[1]
 
 # Analyze the events with most injuries
-topInjuries <- arrange(popImpactData, desc(injuries))[1:10, c("evtype", "fatalities")]
+topInjuries <- arrange(popImpactData, 
+                       desc(injuries))[1:10, c("evtype", "injuries")]
 eventTypes <- as.character(topInjuries$evtype)
 topInjuries$evtype = factor(eventTypes, levels = eventTypes, ordered = TRUE)
+topInjuryEvent <- eventTypes[1]
+topInjuryEventCount <- topInjuries$injuries[1]
+```
 
+```{r plot-fatalities, echo = FALSE, eval = TRUE, warning = FALSE}
+# Plot fatalities
+ggplot(topFatalities) +
+    geom_bar(stat = "identity", 
+             fill = "orangered1",
+             aes(x = evtype, y = fatalities)) +
+    ggtitle("Top 10 Most Fatal Storm Events") +
+    xlab("Storm Event Type") +
+    ylab("Number of Fatalities") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
+```
+
+```{r plot-injuries, echo = FALSE, eval = TRUE, warning = FALSE}
+# Plot injuries
+ggplot(topInjuries) +
+    geom_bar(stat = "identity", 
+             fill = "orangered1",
+             aes(x = evtype, y = injuries)) +
+    ggtitle("Top 10 Most Injurious Storm Events") +
+    xlab("Storm Event Type") +
+    ylab("Number of Injuries") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
 ```
 
 ## Storm Event Types and Economic Consequences
@@ -74,13 +116,31 @@ The R code used in preparing this report is available in this section.
 
 ```{r echo=TRUE,eval=FALSE}
 <<libraries>>
-    ```
+```
     
-    ### Downloading, Loading and Cleaning Data
+### Downloading, Loading and Cleaning Data
     
-    ```{r echo=TRUE,eval=FALSE}
+```{r echo=TRUE,eval=FALSE}
 <<load-data>>
-    ```
-    
+```
+
+### Preliminary Analysis
+
+```{r echo=TRUE,eval=FALSE}
+<<prelim-anal>>
+```
+
+### Analyze Storm Event by Population Impact
+```{r echo=TRUE,eval=FALSE}
+<<analyze-by-pop>>
+```
+
+### Plot Population Impact of Storm Events
+```{r echo=TRUE,eval=FALSE}
+<<plot-fatalities>>
+<<plot-injuries>>
+```
+
+
     [1]: https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2 "Storm Data"
     [2]: https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf "National Weather Service Instruction 10-1605"
