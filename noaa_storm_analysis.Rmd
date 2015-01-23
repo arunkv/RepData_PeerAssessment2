@@ -50,8 +50,8 @@ the local directory `data`. The data is then uncompressed and loaded as a
 suitable for use in `R`. Only the columns relevant to this analysis are 
 retained - `evtype`, `fatalities`, `injuries`, `propdmg`, `propdmgexp`, 
 `cropdmg`, and `cropdmgexp`. The event type data in the `evtype` column is also 
-corrected to adhere to section 2.1 _Permitted Storm Data Events_ of the NOAA 
-document. 
+corrected to match the closest type listed in section 2.1 
+_Permitted Storm Data Events_ of the NOAA document. 
 
 ```{r load-data, message = FALSE, warning = FALSE}
 library(dplyr)
@@ -81,13 +81,32 @@ data <- data %>%
     select(evtype, fatalities, injuries, propdmg, propdmgexp, cropdmg, cropdmgexp)
 
 # Fix typos in event names and equate to the valid set
-# TODO: Add more corrections
-cleanups <- c("AVALANCE", "AVALANCHE"
-              )
-cleanups <- matrix(cleanups, nrow = length(cleanups)/2, ncol = 2, byrow = TRUE)
-ignore <- apply(cleanups, 1, function(x) {
-    data[which(data$evtype == x[1]), "evtype"] <<- x[2]
-})
+data$evtype[which(data$evtype == "AVALANCE")] <- "AVALANCHE"
+data$evtype[which(data$evtype == "STORM SURGE")] <- "STORM SURGE/TIDE"
+data$evtype[which(data$evtype == "TORNDAO")] <- "TORNADO"
+data$evtype[grep("cold", data$evtype, ignore.case = TRUE)] <- "COLD/WINDCHILL"
+data$evtype[grep("dust", data$evtype, ignore.case = TRUE)] <- "DUST STORM"
+data$evtype[grep("fld$", data$evtype, ignore.case = TRUE)] <- "FLOOD"
+data$evtype[grep("flood", data$evtype, ignore.case = TRUE)] <- "FLOOD"
+data$evtype[grep("fog", data$evtype, ignore.case = TRUE)] <- "DENSE FOG"
+data$evtype[grep("freez", data$evtype, ignore.case = TRUE)] <- "FROST/FREEZE"
+data$evtype[grep("hail", data$evtype, ignore.case = TRUE)] <- "HAIL"
+data$evtype[grep("heat", data$evtype, ignore.case = TRUE)] <- "HEAT"
+data$evtype[grep("hurricane", data$evtype, ignore.case = TRUE)] <- "HURRICANE/TYPHOON"
+data$evtype[grep("ice", data$evtype, ignore.case = TRUE)] <- "ICE STORM"
+data$evtype[grep("lightning", data$evtype, ignore.case = TRUE)] <- "LIGHTNING"
+data$evtype[grep("rain", data$evtype, ignore.case = TRUE)] <- "HEAVY RAIN"
+data$evtype[grep("rip ", data$evtype, ignore.case = TRUE)] <- "RIP CURRENT"
+data$evtype[grep("snow", data$evtype, ignore.case = TRUE)] <- "HEAVY SNOW"
+data$evtype[grep("surf", data$evtype, ignore.case = TRUE)] <- "HIGH SURF"
+data$evtype[grep("thunder", data$evtype, ignore.case = TRUE)] <- "THUNDERSTORM"
+data$evtype[grep("tornado", data$evtype, ignore.case = TRUE)] <- "TORNADO"
+data$evtype[grep("tropical", data$evtype, ignore.case = TRUE)] <- "TROPICAL STORM"
+data$evtype[grep("tstm", data$evtype, ignore.case = TRUE)] <- "THUNDERSTORM"
+data$evtype[grep("typhoon", data$evtype, ignore.case = TRUE)] <- "HURRICANE/TYPHOON"
+data$evtype[grep("wild", data$evtype, ignore.case = TRUE)] <- "WILDFIRE"
+data$evtype[grep("wind", data$evtype, ignore.case = TRUE)] <- "HIGH WIND"
+data$evtype[grep("winter", data$evtype, ignore.case = TRUE)] <- "WINTER STORM"
 
 nobs <- format(nrow(data), scientific = FALSE, big.mark = ",")
 evtypeCount <- length(unique(data$evtype))
@@ -173,7 +192,7 @@ are ignored.
 econImpactData <- data %>%
     select(evtype, propdmg, propdmgexp, cropdmg, cropdmgexp) %>%
     filter((propdmg > 0 & propdmgexp %in% c("K", "M", "B", NA))
-           | (cropdmg > 0 & cropdmgexp %in% c("K", "M", "B", NA))) 
+           & (cropdmg > 0 & cropdmgexp %in% c("K", "M", "B", NA))) 
 
 econImpactData[which(is.na(econImpactData$propdmgexp)), "propdmgexpn"] <- 1
 econImpactData[which(econImpactData$propdmgexp == "K"), "propdmgexpn"] <- 1000
