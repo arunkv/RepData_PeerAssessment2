@@ -2,9 +2,10 @@
 title: "Population Impact of Tornadoes and Economic Impact of Floods"
 author: "Arun K Viswanathan"
 date: "January 22, 2015"
-output: 
-    html_document: 
-        toc: true
+output:
+  html_document:
+    theme: united
+    toc: yes
 ---
 
 ```{r setup, include = FALSE}
