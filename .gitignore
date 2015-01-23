@@ -12,3 +12,9 @@
 
 # Raw data
 data
+
+# R Markdown intermediate files
+noaa_storm_analysis.html
+noaa_storm_analysis_cache/
+noaa_storm_analysis_files/
+

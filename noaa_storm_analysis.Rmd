@@ -1,5 +1,5 @@
 ---
-title: "NOAA Storm Data Analysis"
+title: "Population Impact of Tornadoes and Economic Impact of Floods"
 author: "Arun K Viswanathan"
 date: "January 22, 2015"
 output: 
@@ -16,58 +16,24 @@ knitr::opts_chunk$set(cache = TRUE)
 This paper analyzes the U.S. National Oceanic and Atmospheric Administration's 
 (NOAA) storm database. This database tracks characteristics of major storms and 
 weather events in the United States, including when and where they occur, as 
-well as estimates of any fatalities, injuries, and property damage.
+well as estimates of any fatalities, injuries, and property damage. The paper
+addresses two questions:
 
-```{r libraries, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
-library(dplyr)
-library(lubridate)
-library(ggplot2)
+1. Across the United States, which storm event types have the most impact on 
+human populations? The analysis shows that *tornado* events cause most 
+fatalities and injuries across the United States.
+2. Across, the United States, which storm event types have the greatest
+economic consequences? The analysis shows that *flood* events cause the greatest
+amount of economic damage across the United States.
+
+All data analysis was performed with `R` and the code is included in this paper.
+The `R` session information is shown below:
+
+```{r session-info}
+sessionInfo()
 ```
 
 # Data Processing
-
-```{r load-data, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
-# Download and read file
-dataFileName <- "data/StormData.csv.bz2"
-if (!file.exists(dataFileName)) {
-    dir.create("data", showWarnings = FALSE)
-    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",
-                  destfile = dataFileName,
-                  method = "curl")
-    }
-data <- read.csv(bzfile(dataFileName), 
-                 na.strings = "", 
-                 stringsAsFactors = FALSE)
-
-# Fix up column names
-names(data) <- make.names(tolower(names(data)))
-
-# Fix typos is event names
-cleanups <- c("AVALANCE", "AVALANCHE",
-              "COASTAL FLOODING", "COASTAL FLOOD",
-              "COASTAL FLOODING/EROSION", "COASTAL FLOOD",
-              "COASTAL STORM", "COASTAL FLOOD",
-              "COASTALSTORM", "COASTAL FLOOD",
-              "Coastal Flooding", "COASTAL FLOOD",
-              "Coastal Storm", "COASTAL FLOOD",
-              "COLD", "COLD/WIND CHILL",
-              "COLD AND SNOW", "COLD/WIND CHILL",
-              "COLD WAVE", "COLD/WIND CHILL",
-              "COLD WEATHER", "COLD/WIND CHILL",
-              "COLD/WINDS", "COLD/WIND CHILL",
-              "Cold", "COLD/WIND CHILL",
-              "Cold Temperature", "COLD/WIND CHILL",
-              "DROUGHT/EXCESSIVE HEAT", "DROUGHT",
-              "Dust Devil", "DUST DEVIL",
-              "EXCESSIVE RAINFALL", "HEAVY RAIN"
-              )
-cleanups <- matrix(cleanups, nrow = length(cleanups)/2, ncol = 2, byrow = TRUE)
-ignore <- apply(cleanups, 1, function(x) {
-    data[data$evtype == x[1], "evtype"] <- x[2]    
-})
-
-data <- tbl_df(data)
-```
 
 The 
 [storm data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) 
@@ -77,23 +43,68 @@ Coursera course. The data is described in
 _[National Weather Service Instruction 10-1605](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)_ 
 from the NOAA. 
 
-```{r prelim-anal, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
-nobs <- format(nrow(data), scientific = FALSE, big.mark = ",")
+The code block below shows how the data is loaded and pre-processed before 
+analysis. The data is first downloaded from the source and persisted in
+the local directory `data`. The data is then uncompressed and loaded as a 
+`dplyr` table data frame. Column names are corrected to be lower case and 
+suitable for use in `R`. Only the columns relevant to this analysis are 
+retained - `evtype`, `fatalities`, `injuries`, `propdmg`, `propdmgexp`, 
+`cropdmg`, and `cropdmgexp`. The event type data in the `evtype` column is also 
+corrected to adhere to section 2.1 _Permitted Storm Data Events_ of the NOAA 
+document. 
+
+```{r load-data, message = FALSE, warning = FALSE}
+library(dplyr)
+library(lubridate)
+
+# Download and read file
+dataFileName <- "data/StormData.csv.bz2"
+if (!file.exists(dataFileName)) {
+    dir.create("data", showWarnings = FALSE)
+    download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",
+                  destfile = dataFileName,
+                  method = "curl")
+    }
+data <- tbl_df(read.csv(bzfile(dataFileName), na.strings = ""))
+
+# Fix up column names
+names(data) <- make.names(tolower(names(data)))
+
+# Get year range in the data
 data$bgn_date <- mdy_hms(data$bgn_date, truncated = 1)
 yearRange <- range(year(data$bgn_date))
+
+# Eliminate events with no fatalities, injuries or damage
+# Keep only the columns of interest
+data <- data %>%
+    filter(fatalities != 0 | injuries != 0 | propdmg != 0 | cropdmg != 0) %>%
+    select(evtype, fatalities, injuries, propdmg, propdmgexp, cropdmg, cropdmgexp)
+
+# Fix typos in event names and equate to the valid set
+# TODO: Add more corrections
+cleanups <- c("AVALANCE", "AVALANCHE"
+              )
+cleanups <- matrix(cleanups, nrow = length(cleanups)/2, ncol = 2, byrow = TRUE)
+ignore <- apply(cleanups, 1, function(x) {
+    data[which(data$evtype == x[1]), "evtype"] <<- x[2]
+})
+
+nobs <- format(nrow(data), scientific = FALSE, big.mark = ",")
 evtypeCount <- length(unique(data$evtype))
 ```
 
-The data contains `r nobs` observations of storm event data from 
-`r yearRange[1]` to `r yearRange[2]`. The data has been cleaned to adhere to
-section 2.1 _Permitted Storm Data Events_ of the NOAA document. Around 
-`r evtypeCount` event types are available in the data after cleanup.
+After cleanup, the data contains `r nobs` observations of storm event data from 
+`r yearRange[1]` to `r yearRange[2]`. Around `r evtypeCount` event types are 
+available in the cleaed up data.
 
 # Results
 
 ## Storm Event Types and Population 
 
-```{r analyze-by-pop, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+The code below analyzes the total number of fatalities and injuries for
+each event type.
+
+```{r analyze-by-pop, message = FALSE, warning = FALSE}
 # Summarize the fatalities and injuries for each storm event type
 popImpactData <- data %>%
     select(evtype, fatalities, injuries) %>%
@@ -107,7 +118,7 @@ topFatalities <- arrange(popImpactData,
 eventTypes <- as.character(topFatalities$evtype)
 topFatalities$evtype <- factor(eventTypes, levels = eventTypes, ordered = TRUE)
 topFatalEvent <- eventTypes[1]
-topFatalEventCount <- topFatalities$fatalities[1]
+topFatalEventCount <- format(topFatalities$fatalities[1], big.mark = ",")
 
 # Analyze the events with most injuries
 topInjuries <- arrange(popImpactData, 
@@ -115,14 +126,19 @@ topInjuries <- arrange(popImpactData,
 eventTypes <- as.character(topInjuries$evtype)
 topInjuries$evtype = factor(eventTypes, levels = eventTypes, ordered = TRUE)
 topInjuryEvent <- eventTypes[1]
-topInjuryEventCount <- topInjuries$injuries[1]
+topInjuryEventCount <- format(topInjuries$injuries[1], big.mark = ",")
 ```
 
-```{r plot-fatalities, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+The plot below shows the top 10 events with the most number of fatalities. It
+can be clearly seen that `r topFatalEvent` events are the most dangerous to
+human populations resulting in `r topFatalEventCount` fatalities over the years.
+
+```{r plot-fatalities, message = FALSE, warning = FALSE}
+library(ggplot2)
+
 # Plot fatalities
 ggplot(topFatalities) +
-    geom_bar(stat = "identity", 
-             fill = "orangered1",
+    geom_bar(stat = "identity", fill = "lightcoral",
              aes(x = evtype, y = fatalities)) +
     ggtitle("Top 10 Most Fatal Storm Events") +
     xlab("Storm Event Type") +
@@ -130,11 +146,14 @@ ggplot(topFatalities) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
 ```
 
-```{r plot-injuries, echo = FALSE, eval = TRUE, message = FALSE, warning = FALSE}
+The plot below shows the top 10 events with the most number of injuries. It
+can be clearly seen that `r topInjuryEvent` events are the most dangerous to
+human populations resulting in `r topInjuryEventCount` injuries over the years.
+
+```{r plot-injuries, message = FALSE, warning = FALSE}
 # Plot injuries
 ggplot(topInjuries) +
-    geom_bar(stat = "identity", 
-             fill = "orangered1",
+    geom_bar(stat = "identity", fill = "lightcoral",
              aes(x = evtype, y = injuries)) +
     ggtitle("Top 10 Most Injurious Storm Events") +
     xlab("Storm Event Type") +
@@ -144,37 +163,56 @@ ggplot(topInjuries) +
 
 ## Storm Event Types and Economic Consequences
 
-# Appendix
+The code below analyzes the total property and crop damage for each event type.
+The code combines the `propdmg` and `cropdmg` fields, accounting for their
+exponents specified in `propdmgexp` and `cropdmgexp`. For the purposes of this
+analysis, only valid exponents (NA, `K`, `M`, and `B`) are used and all others
+are ignored. 
 
-## Code 
+```{r analyze-by-econ, message = FALSE, warning = FALSE}
+econImpactData <- data %>%
+    select(evtype, propdmg, propdmgexp, cropdmg, cropdmgexp) %>%
+    filter((propdmg > 0 & propdmgexp %in% c("K", "M", "B", NA))
+           | (cropdmg > 0 & cropdmgexp %in% c("K", "M", "B", NA))) 
 
-The R code used in preparing this report is available in this section.
+econImpactData[which(is.na(econImpactData$propdmgexp)), "propdmgexpn"] <- 1
+econImpactData[which(econImpactData$propdmgexp == "K"), "propdmgexpn"] <- 1000
+econImpactData[which(econImpactData$propdmgexp == "M"), "propdmgexpn"] <- 1000000
+econImpactData[which(econImpactData$propdmgexp == "B"), "propdmgexpn"] <- 1000000000
 
-### Libraries
+econImpactData[which(is.na(econImpactData$cropdmgexp)), "cropdmgexpn"] <- 1
+econImpactData[which(econImpactData$cropdmgexp == "K"), "cropdmgexpn"] <- 1000
+econImpactData[which(econImpactData$cropdmgexp == "M"), "cropdmgexpn"] <- 1000000
+econImpactData[which(econImpactData$cropdmgexp == "B"), "cropdmgexpn"] <- 1000000000
 
-```{r echo = TRUE, eval = FALSE}
-<<libraries>>
+econImpactData$dmg <- econImpactData$propdmg * econImpactData$propdmgexpn +
+    econImpactData$cropdmg * econImpactData$cropdmgexpn 
+
+econImpactData <- econImpactData %>%
+    select(evtype, dmg) %>%
+    group_by(evtype) %>%
+    summarise(damages = sum(dmg))
+
+topDamages <- arrange(econImpactData, desc(damages))[1:10, ]
+eventTypes <- as.character(topDamages$evtype)
+topDamages$evtype = factor(eventTypes, levels = eventTypes, ordered = TRUE)
+topDamageEvent <- eventTypes[1]
+topDamageAmt <- format(topDamages$damages[1], big.mark = ",")
+
 ```
-    
-### Downloading, Loading and Cleaning Data
-    
-```{r echo = TRUE, eval = FALSE}
-<<load-data>>
+
+The plot below shows the top 10 events with the most damage. It can be clearly 
+seen that `r topDamageEvent` events have the most economic impact resulting in 
+$`r topDamageAmt` of damages over the years.
+
+```{r plot-damages, message = FALSE, warning = FALSE}
+# Plot damages
+ggplot(topDamages) +
+    geom_bar(stat = "identity", fill = "lightcoral",
+             aes(x = evtype, y = damages/1000000000)) +
+    ggtitle("Top 10 Most Damaging Storm Events") +
+    xlab("Storm Event Type") +
+    ylab("Amount of Damage (billions of $") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 10))
 ```
 
-### Preliminary Analysis
-
-```{r echo = TRUE, eval = FALSE}
-<<prelim-anal>>
-```
-
-### Analyze Storm Event by Population Impact
-```{r echo = TRUE, eval = FALSE}
-<<analyze-by-pop>>
-```
-
-### Plot Population Impact of Storm Events
-```{r echo = TRUE, eval = FALSE}
-<<plot-fatalities>>
-<<plot-injuries>>
-```
